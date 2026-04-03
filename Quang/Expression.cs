@@ -1,16 +1,18 @@
 namespace Quang;
 
-internal abstract record Expression;
+internal abstract record Expression(string DisplayName)
+{
+	public override string ToString() => DisplayName;
+};
 
-internal record NilExpression() : Expression;
-internal record BoolExpression(bool Value) : Expression;
-internal record FloatExpression(float Value) : Expression;
-internal record IntegerExpression(int Integer) : Expression;
-internal record SymbolExpression(string Symbol) : Expression;
-internal record AtomExpression(string Atom) : Expression;
-internal record StringExpression(string String) : Expression;
-internal record BinaryNode(BinaryExpression Binary) : Expression;
-internal record BinaryExpression(Expression Left, BinaryOperator Operator, Expression Right) : Expression;
+internal record NilExpression() : Expression("nil");
+internal record BoolExpression(bool Value) : Expression("bool");
+internal record FloatExpression(float Value) : Expression("float");
+internal record IntegerExpression(int Value) : Expression("integer");
+internal record SymbolExpression(string Value) : Expression("symbol");
+internal record AtomExpression(Atom Value) : Expression("atom");
+internal record StringExpression(string Value) : Expression("string");
+internal record BinaryExpression(Expression Left, BinaryOperator Operator, Expression Right) : Expression("binary");
 
 internal enum BinaryOperator
 {
@@ -22,5 +24,22 @@ internal enum BinaryOperator
 	Lte,
 	Reg,
 	And,
-	Or,
+	Or
+}
+
+internal static class BinaryOperatorExtensions
+{
+	public static string ToSymbol(this BinaryOperator op) => op switch
+	{
+		BinaryOperator.Eq => "eq",
+		BinaryOperator.Ne => "ne",
+		BinaryOperator.Gt => "gt",
+		BinaryOperator.Lt => "lt",
+		BinaryOperator.Gte => "gte",
+		BinaryOperator.Lte => "lte",
+		BinaryOperator.Reg => "reg",
+		BinaryOperator.And => "and",
+		BinaryOperator.Or => "or",
+		_ => throw new QuangSyntaxException($"unknown binary operator {op}", 1),
+	};
 }

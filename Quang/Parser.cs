@@ -59,7 +59,7 @@ internal class Parser
             TokenKind.TrueKeyword => new BoolExpression(true),
             TokenKind.FalseKeyword => new BoolExpression(false),
             TokenKind.NilKeyword => new NilExpression(),
-            TokenKind.Atom => new AtomExpression(current.Value),
+            TokenKind.Atom => new AtomExpression((Atom)current.Value),
             TokenKind.Symbol => new SymbolExpression(current.Value),
             TokenKind.String => new StringExpression(UnescapeString(current.Value)),
             _ => throw new QuangSyntaxException($"unexpected token \"{current.Value}\"", current.Col),

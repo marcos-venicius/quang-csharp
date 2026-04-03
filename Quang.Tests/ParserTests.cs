@@ -18,7 +18,7 @@ public class ParserTests
         Assert.Equal(BinaryOperator.Eq, ((BinaryExpression)expr).Operator);
 
         Assert.IsType<SymbolExpression>(((BinaryExpression)expr).Left);
-        Assert.Equal("size", ((SymbolExpression)((BinaryExpression)expr).Left).Symbol);
+        Assert.Equal("size", ((SymbolExpression)((BinaryExpression)expr).Left).Value);
 
         Assert.IsType<IntegerExpression>(((BinaryExpression)expr).Right);
     }
@@ -51,7 +51,7 @@ public class ParserTests
         Assert.Equal(BinaryOperator.Eq, ((BinaryExpression)right).Operator);
         Assert.IsType<SymbolExpression>(((BinaryExpression)right).Left);
         Assert.IsType<AtomExpression>(((BinaryExpression)right).Right);
-        Assert.Equal(":post", ((AtomExpression)((BinaryExpression)right).Right).Atom);
+        Assert.Equal(":post", (string)((AtomExpression)((BinaryExpression)right).Right).Value);
     }
 
     [Fact]
