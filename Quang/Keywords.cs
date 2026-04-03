@@ -1,3 +1,5 @@
+using System.Collections.ObjectModel;
+
 namespace Quang;
 
 internal class Keywords
@@ -17,6 +19,8 @@ internal class Keywords
         { "gte",   TokenKind.GteKeyword },
         { "lte",   TokenKind.LteKeyword },
     };
+
+    internal static readonly ReadOnlyDictionary<string, TokenKind> Mappings = new(_keywords);
 
     internal static TokenKind MatchKeywordOrSymbol(string symbol)
     {
