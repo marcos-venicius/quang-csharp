@@ -5,10 +5,27 @@
     <RootNamespace>Quang</RootNamespace>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <RepositoryUrl>https://github.com/marcos-venicius/quang-csharp</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/marcos-venicius/quang-csharp</PackageProjectUrl>
+    <RepositoryType>git</RepositoryType>
+    <Title>Quang</Title>
+    <Description>Quang is meant to be a "query" language for your tools.</Description>
+    <Authors>Marcos Venicius</Authors>
+    <Version>1.0.0</Version>
+    <PackageId>Quang</PackageId>
+    <PackageTags>quang;query-language;language</PackageTags>
+    <Copyright>Copyright (c) marcos-venicius 2026</Copyright>
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageLicenseFile>LICENSE</PackageLicenseFile>
   </PropertyGroup>
 
   <ItemGroup>
     <InternalsVisibleTo Include="Quang.Tests" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Include="..\README.md" Pack="true" PackagePath="." />
+    <None Include="..\LICENSE" Pack="true" PackagePath="." />
+  </ItemGroup>
 </Project>
