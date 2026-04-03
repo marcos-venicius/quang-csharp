@@ -6,9 +6,9 @@ internal class Evaluator
 {
     private readonly Dictionary<string, Variable> _symbols;
     private readonly Dictionary<string, Atom> _atoms;
-    private readonly Expression _expression;
+    private readonly Expression? _expression;
 
-    internal Evaluator(Expression expression)
+    internal Evaluator(Expression? expression)
     {
         _expression = expression;
         _symbols = [];
