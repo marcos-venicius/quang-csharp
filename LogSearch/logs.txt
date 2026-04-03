@@ -1,0 +1,15 @@
+username,age,sex,weight
+user001,25,M,70.2
+user002,31,F,60.7
+user003,22,M,68.4
+user004,29,F,55.9
+user005,35,M,80.1
+user006,28,F,62.5
+user007,24,M,72.3
+user008,30,F,59.6
+user009,27,M,75.8
+user010,33,F,65.2
+user011,26,M,71.4
+user012,32,F,63.7
+user013,23,M,69.9
+user014,34,F,58.3

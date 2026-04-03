@@ -64,3 +64,72 @@ So, we could query something like:
 
 > [!TIP]
 > This repository is a port of [Quang](https://github.com/marcos-venicius/quang) for CSharp. See the original repository for more information.
+
+# How to Use
+
+Let's pretend you have a list of people and you need to build a CLI to search this list.
+
+```
+username,age,sex,weight
+user001,25,M,70.2
+user002,31,F,60.7
+user003,22,M,68.4
+user004,29,F,55.9
+user005,35,M,80.1
+user006,28,F,62.5
+user007,24,M,72.3
+user008,30,F,59.6
+user009,27,M,75.8
+user010,33,F,65.2
+user011,26,M,71.4
+user012,32,F,63.7
+user013,23,M,69.9
+user014,34,F,58.3
+```
+
+Then, you can with a **less than 20 lines of code** integrate the language with your cli.
+
+Here is a **fully function example**:
+
+```csharp
+if (args.Length != 1)
+{
+    Console.WriteLine("Usage: dotnet run -- <search-query>");
+
+    return;
+}
+
+string[][] content = [.. File.ReadAllLines("./logs.txt")[1..].Select(line => line.Split(','))];
+
+var quang = new Quang.Quang(args[0])
+    .Init()
+    .SetupAtom(":f", "f")
+    .SetupAtom(":m", "m");
+
+foreach (var line in content)
+{
+    var username = line[0].Trim();
+    var age = int.Parse(line[1]);
+    var sex = line[2].ToLower().Trim();
+    var weight = float.Parse(line[3]);
+
+    quang
+        .AddStringVar("username", username)
+        .AddAtomVar("sex", sex)
+        .AddIntegerVar("age", age)
+        .AddFloatVar("weight", weight);
+
+    if (quang.Evaluate())
+        Console.WriteLine($"Matched: {username},{age},{sex},{weight}");
+}
+```
+
+In fact, this example is present [here](./LogSearch/Program.cs).
+
+Then, if you run and use this filter: `dotnet run -- 'sex eq :m and weight lte 70.0 and age gte 23'`, it should return you this:
+
+```
+Matched: user013,23,m,69.9
+```
+
+**✨ Is that easy!**
