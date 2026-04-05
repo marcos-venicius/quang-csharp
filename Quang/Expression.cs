@@ -1,22 +1,24 @@
 namespace Quang;
 
-internal abstract record Expression(string DisplayName)
+public abstract record Expression(string DisplayName)
 {
 	public override string ToString() => DisplayName;
 };
 
-internal record NilExpression() : Expression("nil");
-internal record BoolExpression(bool Value) : Expression("bool");
-internal record FloatExpression(float Value) : Expression("float");
-internal record IntegerExpression(int Value) : Expression("integer");
-internal record SymbolExpression(string Value) : Expression("symbol");
-internal record AtomExpression(Atom Value) : Expression("atom");
-internal record StringExpression(string Value) : Expression("string");
-internal record BinaryExpression(Expression Left, BinaryOperator Operator, Expression Right) : Expression("binary");
+public abstract record ExpressionValueType(string DisplayName) : Expression(DisplayName);
 
-internal enum BinaryOperator
+public record NilExpression() : ExpressionValueType("nil");
+public record BoolExpression(bool Value) : ExpressionValueType("bool");
+public record FloatExpression(float Value) : ExpressionValueType("float");
+public record IntegerExpression(int Value) : ExpressionValueType("integer");
+public record SymbolExpression(string Value) : ExpressionValueType("symbol");
+public record StringExpression(string Value) : ExpressionValueType("string");
+public record AtomExpression(Atom Value) : ExpressionValueType("atom");
+public record BinaryExpression(Expression Left, BinaryOperator Operator, Expression Right) : Expression("binary");
+
+public enum BinaryOperator
 {
-    Eq,
+	Eq,
 	Ne,
 	Gt,
 	Lt,

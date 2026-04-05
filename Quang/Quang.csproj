@@ -11,7 +11,7 @@
     <Title>Quang</Title>
     <Description>Quang is meant to be a "query" language for your tools.</Description>
     <Authors>Marcos Venicius</Authors>
-    <Version>1.0.0</Version>
+    <Version>2.0.0</Version>
     <PackageId>Quang</PackageId>
     <PackageTags>quang;query-language;language</PackageTags>
     <Copyright>Copyright (c) marcos-venicius 2026</Copyright>

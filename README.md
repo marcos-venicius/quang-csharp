@@ -92,6 +92,8 @@ Then, you can with a **less than 20 lines of code** integrate the language with 
 Here is a **fully function example**:
 
 ```csharp
+using Quang;
+
 if (args.Length != 1)
 {
     Console.WriteLine("Usage: dotnet run -- <search-query>");
@@ -103,8 +105,12 @@ string[][] content = [.. File.ReadAllLines("./logs.txt")[1..].Select(line => lin
 
 var quang = new Quang.Quang(args[0])
     .Init()
-    .SetupAtom(":f", "f")
-    .SetupAtom(":m", "m");
+    .SyntaxExpectAtom(":f")
+    .SyntaxExpectAtom(":m")
+    .SyntaxExpectSymbol("age", new ExpressionValueTypeInfo<IntegerExpression>())
+    .SyntaxExpectSymbol("weight", new ExpressionValueTypeInfo<FloatExpression>())
+    .SyntaxExpectSymbol("username", new ExpressionValueTypeInfo<StringExpression>())
+    .SyntaxExpectSymbol("sex", new ExpressionValueTypeInfo<AtomExpression>());
 
 foreach (var line in content)
 {
@@ -113,13 +119,13 @@ foreach (var line in content)
     var sex = line[2].ToLower().Trim();
     var weight = float.Parse(line[3]);
 
-    quang
+    var evaluator = quang.Evaluator()
         .AddStringVar("username", username)
-        .AddAtomVar("sex", sex)
+        .AddAtomVar("sex", $":{sex}")
         .AddIntegerVar("age", age)
         .AddFloatVar("weight", weight);
 
-    if (quang.Evaluate())
+    if (evaluator.Evaluate())
         Console.WriteLine($"Matched: {username},{age},{sex},{weight}");
 }
 ```

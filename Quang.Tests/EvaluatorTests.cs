@@ -36,7 +36,7 @@ public class EvaluatorTests
 
             Assert.NotNull(expr);
 
-            var evaluator = new Evaluator(expr!);
+            var evaluator = new Evaluator(expr, []);
             var result = evaluator.Evaluate();
 
             Assert.Equal(expected, result);
@@ -85,7 +85,7 @@ public class EvaluatorTests
 
             Assert.NotNull(expr);
 
-            var evaluator = new Evaluator(expr!);
+            var evaluator = new Evaluator(expr, []);
             var result = evaluator.Evaluate();
 
             Assert.Equal(expected, result);
@@ -133,7 +133,7 @@ public class EvaluatorTests
 
             Assert.NotNull(expr);
 
-            var evaluator = new Evaluator(expr!);
+            var evaluator = new Evaluator(expr, []);
             var result = evaluator.Evaluate();
 
             Assert.Equal(expected, result);
@@ -163,7 +163,7 @@ public class EvaluatorTests
 
             Assert.NotNull(expr);
 
-            var evaluator = new Evaluator(expr!);
+            var evaluator = new Evaluator(expr, []);
 
             var ex = Assert.Throws<QuangSyntaxException>(() => evaluator.Evaluate());
             Assert.Equal(test.Error, ex.Message);
@@ -197,7 +197,7 @@ public class EvaluatorTests
 
             Assert.NotNull(expr);
 
-            var evaluator = new Evaluator(expr!);
+            var evaluator = new Evaluator(expr, []);
             var result = evaluator.Evaluate();
 
             Assert.Equal(expected, result);
@@ -215,7 +215,7 @@ public class EvaluatorTests
 
         Assert.NotNull(expr);
 
-        var evaluator = new Evaluator(expr!);
+        var evaluator = new Evaluator(expr, []);
 
         // Variable does not exist
         var ex1 = Assert.Throws<QuangSyntaxException>(() => evaluator.Evaluate());
@@ -248,7 +248,7 @@ public class EvaluatorTests
 
         Assert.NotNull(expr);
 
-        var evaluator = new Evaluator(expr!);
+        var evaluator = new Evaluator(expr, []);
 
         evaluator.AddStringVar("agent", "hello world");
         evaluator.AddStringVar("this", "^\\w+\\s\\w+$");
@@ -269,24 +269,25 @@ public class EvaluatorTests
 
         Assert.NotNull(expr);
 
-        var evaluator = new Evaluator(expr!);
+        var evaluator = new Evaluator(expr, []);
 
         // Variable does not exist
         var ex1 = Assert.Throws<QuangSyntaxException>(() => evaluator.Evaluate());
         Assert.Equal("error: the variable 'method' does not exist", ex1.Message);
 
         // Add atom variable but target atom missing
-        evaluator.AddAtomVar("method", new Atom("get"));
+        evaluator.AddAtomVar("method", new Atom(":get"));
         var ex2 = Assert.Throws<QuangSyntaxException>(() => evaluator.Evaluate());
         Assert.Equal("error: the atom ':get' does not exist", ex2.Message);
 
-        // Set target atom to :post
-        evaluator.SetAtomValue(":get", new Atom("post"));
+        evaluator = new Evaluator(expr, [":get"]);
+        evaluator.AddAtomVar("method", new Atom(":post"));
+
         var result = evaluator.Evaluate();
         Assert.False(result);
 
-        // Set target atom to :get
-        evaluator.SetAtomValue(":get", new Atom("get"));
+        evaluator.AddAtomVar("method", new Atom(":get"));
+
         result = evaluator.Evaluate();
         Assert.True(result);
 
@@ -307,15 +308,15 @@ public class EvaluatorTests
 
         Assert.NotNull(expr);
 
-        var evaluator = new Evaluator(expr!);
+        var evaluator = new Evaluator(expr, [":get"]);
 
-        evaluator.AddAtomVar("method", new Atom("get"));
-        evaluator.SetAtomValue(":get", new Atom("get"));
+        evaluator.AddAtomVar("method", new Atom(":get"));
 
         var result = evaluator.Evaluate();
         Assert.False(result);
 
-        evaluator.SetAtomValue(":get", new Atom("post"));
+        evaluator.AddAtomVar("method", new Atom(":post"));
+
         result = evaluator.Evaluate();
         Assert.True(result);
     }

@@ -2,54 +2,94 @@ using System.Text.RegularExpressions;
 
 namespace Quang;
 
-internal class Evaluator
+public sealed class Evaluator
 {
     private readonly Dictionary<string, Variable> _symbols;
-    private readonly Dictionary<string, Atom> _atoms;
+    private readonly HashSet<string> _atoms;
     private readonly Expression? _expression;
 
-    internal Evaluator(Expression? expression)
+    internal Evaluator(Expression? expression, HashSet<string> atoms)
     {
         _expression = expression;
         _symbols = [];
-        _atoms = [];
+        _atoms = atoms;
     }
 
-    internal bool Evaluate() => EvaluateExpression(_expression);
+    public bool Evaluate() => EvaluateExpression(_expression);
 
-    internal void AddStringVar(string name, string value)
+    /// <summary>
+    /// For each evaluation, you can provide different variable values.
+    /// If, for example you want to do a query over a bunch of logs the user
+    /// will provide the query, for example filtering by a specific user agent pattern
+    /// then, for each log row, you can update the "agent" variable value to the current log row user agent
+    /// so the, when the language lazy evaluate the "agent" variable the query will be applied to the current
+    /// log row successfully
+    /// </summary>
+    public Evaluator AddStringVar(string name, string value)
     {
         _symbols[name] = new StringVariable(value);
+
+        return this;
     }
 
-    internal void AddIntegerVar(string name, int value)
+    /// <summary>
+    /// For each evaluation, you can provide different variable values.
+    /// If, for example you want to do a query over a bunch of logs the user
+    /// will provide the query, for example filtering by a specific user agent pattern
+    /// then, for each log row, you can update the "agent" variable value to the current log row user agent
+    /// so the, when the language lazy evaluate the "agent" variable the query will be applied to the current
+    /// log row successfully
+    /// </summary>
+    public Evaluator AddIntegerVar(string name, int value)
     {
         _symbols[name] = new IntegerVariable(value);
+
+        return this;
     }
 
-    internal void AddFloatVar(string name, float value)
+    /// <summary>
+    /// For each evaluation, you can provide different variable values.
+    /// If, for example you want to do a query over a bunch of logs the user
+    /// will provide the query, for example filtering by a specific user agent pattern
+    /// then, for each log row, you can update the "agent" variable value to the current log row user agent
+    /// so the, when the language lazy evaluate the "agent" variable the query will be applied to the current
+    /// log row successfully
+    /// </summary>
+    public Evaluator AddFloatVar(string name, float value)
     {
         _symbols[name] = new FloatVariable(value);
+
+        return this;
     }
 
-    internal void AddBoolVar(string name, bool value)
+    /// <summary>
+    /// For each evaluation, you can provide different variable values.
+    /// If, for example you want to do a query over a bunch of logs the user
+    /// will provide the query, for example filtering by a specific user agent pattern
+    /// then, for each log row, you can update the "agent" variable value to the current log row user agent
+    /// so the, when the language lazy evaluate the "agent" variable the query will be applied to the current
+    /// log row successfully
+    /// </summary>
+    public Evaluator AddBoolVar(string name, bool value)
     {
         _symbols[name] = new BoolVariable(value);
+
+        return this;
     }
 
-    internal void AddAtomVar(string name, Atom value)
+    /// <summary>
+    /// For each evaluation, you can provide different variable values.
+    /// If, for example you want to do a query over a bunch of logs the user
+    /// will provide the query, for example filtering by a specific user agent pattern
+    /// then, for each log row, you can update the "agent" variable value to the current log row user agent
+    /// so the, when the language lazy evaluate the "agent" variable the query will be applied to the current
+    /// log row successfully
+    /// </summary>
+    public Evaluator AddAtomVar(string name, Atom value)
     {
         _symbols[name] = new AtomVariable(value);
-    }
 
-    internal void SetAtomValue(string name, Atom value)
-    {
-        var tokens = new Lexer(name).Lex();
-
-        if (tokens.Count != 1 || tokens[0].Kind != TokenKind.Atom)
-            throw new QuangSyntaxException("invalid atom name");
-
-        _atoms[name] = value;
+        return this;
     }
 
     private Expression? LazyEvalVar(Expression? expr)

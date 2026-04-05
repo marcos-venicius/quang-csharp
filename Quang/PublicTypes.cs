@@ -9,3 +9,13 @@ public readonly struct Atom(string value)
 
     public override string ToString() => Value;
 }
+
+public interface IExpressionValueTypeInfo
+{
+    public Type Type { get; }
+}
+
+public sealed class ExpressionValueTypeInfo<T> : IExpressionValueTypeInfo where T : ExpressionValueType
+{
+    public Type Type => typeof(T);
+}
