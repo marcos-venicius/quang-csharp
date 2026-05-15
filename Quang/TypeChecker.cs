@@ -56,6 +56,7 @@ internal class TypeChecker
             AtomExpression atom => ValidateAtom(atom),
             SymbolExpression s => ResolveSymbolType(s),
             BinaryExpression b => ValidateBinary(b),
+            UnaryExpression u => ValidateUnary(u),
             _ => throw new QuangSyntaxException($"Unknown expression type: {expr.DisplayName}")
         };
     }
@@ -74,6 +75,21 @@ internal class TypeChecker
             return type;
 
         throw new QuangSyntaxException($"The variable '{symbol.Value}' is not defined in the current schema.");
+    }
+
+    private SyntaxExpressionValueType ValidateUnary(UnaryExpression unary)
+    {
+        var operandType = GetExpressionType(unary.Expr);
+
+        return unary.Operator switch
+        {
+            UnaryOperator.Not =>
+                operandType == SyntaxExpressionValueType.Bool
+                    ? SyntaxExpressionValueType.Bool
+                    : throw new QuangSyntaxException($"Unary operator '{unary.Operator}' requires a boolean operand, but got {operandType}."),
+
+            _ => throw new QuangSyntaxException($"Unsupported unary operator: {unary.Operator}")
+        };
     }
 
     private SyntaxExpressionValueType ValidateBinary(BinaryExpression binary)

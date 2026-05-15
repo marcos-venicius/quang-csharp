@@ -3,6 +3,31 @@
 public class LexerTests
 {
     [Fact]
+    public void Lex_Keywords()
+    {
+        var lexer = new Lexer("true false nil and or reg eq ne gt lt gte lte not");
+
+        var tokens = lexer.Lex();
+
+        Assert.NotNull(tokens);
+        Assert.Equal(13, tokens.Count);
+
+        Assert.Equal(TokenKind.TrueKeyword, tokens[0].Kind);
+        Assert.Equal(TokenKind.FalseKeyword, tokens[1].Kind);
+        Assert.Equal(TokenKind.NilKeyword, tokens[2].Kind);
+        Assert.Equal(TokenKind.AndKeyword, tokens[3].Kind);
+        Assert.Equal(TokenKind.OrKeyword, tokens[4].Kind);
+        Assert.Equal(TokenKind.RegKeyword, tokens[5].Kind);
+        Assert.Equal(TokenKind.EqKeyword, tokens[6].Kind);
+        Assert.Equal(TokenKind.NeKeyword, tokens[7].Kind);
+        Assert.Equal(TokenKind.GtKeyword, tokens[8].Kind);
+        Assert.Equal(TokenKind.LtKeyword, tokens[9].Kind);
+        Assert.Equal(TokenKind.GteKeyword, tokens[10].Kind);
+        Assert.Equal(TokenKind.LteKeyword, tokens[11].Kind);
+        Assert.Equal(TokenKind.NotKeyword, tokens[12].Kind);
+    }
+
+    [Fact]
     public void Lex_ParenthesisSequence_ReturnsCorrectTokens()
     {
         var lexer = new Lexer("())(");

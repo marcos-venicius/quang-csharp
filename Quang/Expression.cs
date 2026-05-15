@@ -15,6 +15,7 @@ public record SymbolExpression(string Value) : ExpressionValueType("symbol");
 public record StringExpression(string Value) : ExpressionValueType("string");
 public record AtomExpression(Atom Value) : ExpressionValueType("atom");
 public record BinaryExpression(Expression Left, BinaryOperator Operator, Expression Right) : Expression("binary");
+public record UnaryExpression(Expression Expr, UnaryOperator Operator) : Expression("unary");
 
 public enum BinaryOperator
 {
@@ -27,6 +28,11 @@ public enum BinaryOperator
 	Reg,
 	And,
 	Or
+}
+
+public enum UnaryOperator
+{
+    Not
 }
 
 internal static class BinaryOperatorExtensions
@@ -43,5 +49,14 @@ internal static class BinaryOperatorExtensions
 		BinaryOperator.And => "and",
 		BinaryOperator.Or => "or",
 		_ => throw new QuangSyntaxException($"unknown binary operator {op}", 1),
+	};
+}
+
+internal static class UnaryOperatorExtensions
+{
+	public static string ToSymbol(this UnaryOperator op) => op switch
+	{
+		UnaryOperator.Not => "not",
+		_ => throw new QuangSyntaxException($"unknown unary operator {op}", 1),
 	};
 }

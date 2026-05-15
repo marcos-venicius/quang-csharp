@@ -88,4 +88,19 @@ public class ParserTests
             Assert.NotNull(e);
         }
     }
+
+    [Theory]
+    [InlineData("not (method eq :get and size gt 0 and size lte 1024)")]
+    [InlineData("not true")]
+    [InlineData("not not true")]
+    [InlineData("not (not false)")]
+    public void ParseUnaryExpressions(string data)
+    {
+        var tokens = new Lexer(data).Lex();
+        var parser = new Parser(tokens);
+
+        var expr = parser.ParseExpression();
+
+        Assert.NotNull(expr);
+    }
 }

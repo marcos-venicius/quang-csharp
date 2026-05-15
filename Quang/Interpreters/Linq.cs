@@ -33,7 +33,17 @@ public sealed class LinqInterpreter<T>
         return expr switch
         {
             BinaryExpression binary => VisitBinary(binary),
+            UnaryExpression unary => VisitUnary(unary),
             _ => throw new NotSupportedException($"Expression type {expr.GetType().Name} is not supported as a root/logical node.")
+        };
+    }
+
+    private LinqExpression VisitUnary(UnaryExpression unary)
+    {
+        return unary.Operator switch
+        {
+            UnaryOperator.Not => LinqExpression.Not(Visit(unary.Expr)),
+            _ => throw new NotImplementedException($"Unary operator {unary.Operator} is not supported.")
         };
     }
 

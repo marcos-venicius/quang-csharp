@@ -18,6 +18,7 @@ internal class Keywords
         { "lt",    TokenKind.LtKeyword },
         { "gte",   TokenKind.GteKeyword },
         { "lte",   TokenKind.LteKeyword },
+        { "not",   TokenKind.NotKeyword },
     };
 
     internal static readonly ReadOnlyDictionary<string, TokenKind> Mappings = new(_keywords);

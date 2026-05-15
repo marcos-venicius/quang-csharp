@@ -30,6 +30,7 @@ Does not matter what kind of query you provide as input to the evaluator, it wil
 
 | name     | description   | usage            |
 | -------- | ------------- | ---------------- |
+| not      | negation      | `not false`      |
 | and      | logical and   | `true and true`  |
 | or       | logical or    | `true or false`  |
 | nil      | null value    | `name eq nil`    |
@@ -40,6 +41,7 @@ Does not matter what kind of query you provide as input to the evaluator, it wil
 
 | name     | description                                                                                        | example                 |
 | -------- | -------------------------------------------------------------------------------------------------- | ----------------------- |
+| not      | negate boolean expressions                                                                         | `not (status eq 400)`   |
 | eq       | check if `a` is equal to `b`. strict types. (Integers, Strings, Booleans, Nils, Floats, Atoms)     | `a eq b`                |
 | ne       | check if `a` is not equal to `b`. strict types. (Integers, Strings, Booleans, Nils, Floats, Atoms) | `a ne b`                |
 | lt       | check if `a` is less than `b`. strict types. (Integers, Strings)                                   | `a lt b`                |

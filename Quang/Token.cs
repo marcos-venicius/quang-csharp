@@ -28,6 +28,7 @@ internal enum TokenKind
 	GteKeyword,
 	LteKeyword,
 	RegKeyword,
+	NotKeyword,
 
 	Symbol,
 

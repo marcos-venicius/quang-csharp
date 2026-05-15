@@ -44,71 +44,6 @@ internal class Parser
         return left;
     }
 
-    private Expression? ParsePrimary()
-    {
-        if (IsEmpty()) throw new QuangSyntaxException("missing token", Last().Col);
-
-        var current = Token();
-
-        AdvanceCursor();
-
-        return current.Kind switch
-        {
-            TokenKind.Integer => new IntegerExpression(int.Parse(current.Value)),
-            TokenKind.Float => new FloatExpression(float.Parse(current.Value)),
-            TokenKind.TrueKeyword => new BoolExpression(true),
-            TokenKind.FalseKeyword => new BoolExpression(false),
-            TokenKind.NilKeyword => new NilExpression(),
-            TokenKind.Atom => new AtomExpression((Atom)current.Value),
-            TokenKind.Symbol => new SymbolExpression(current.Value),
-            TokenKind.String => new StringExpression(UnescapeString(current.Value)),
-            _ => throw new QuangSyntaxException($"unexpected token \"{current.Value}\"", current.Col),
-        };
-    }
-
-    internal Expression? ParseComparison()
-    {
-        var left = ParsePrimary();
-
-        if (IsEmpty()) return left;
-
-        var current = Token();
-
-        switch (current.Kind)
-        {
-            case TokenKind.EqKeyword:
-            case TokenKind.NeKeyword:
-            case TokenKind.GtKeyword:
-            case TokenKind.LtKeyword:
-            case TokenKind.GteKeyword:
-            case TokenKind.LteKeyword:
-            case TokenKind.RegKeyword:
-                AdvanceCursor();
-
-                var right = ParsePrimary();
-
-                var op = current.Kind switch
-                {
-                    TokenKind.EqKeyword => BinaryOperator.Eq,
-                    TokenKind.NeKeyword => BinaryOperator.Ne,
-                    TokenKind.GtKeyword => BinaryOperator.Gt,
-                    TokenKind.LtKeyword => BinaryOperator.Lt,
-                    TokenKind.GteKeyword => BinaryOperator.Gte,
-                    TokenKind.LteKeyword => BinaryOperator.Lte,
-                    TokenKind.RegKeyword => BinaryOperator.Reg,
-                    _ => throw new QuangSyntaxException($"unexpected token \"{current.Value}\"", current.Col),
-                };
-
-                return new BinaryExpression(left!, op, right!);
-            case TokenKind.OrKeyword:
-            case TokenKind.AndKeyword:
-            case TokenKind.CloseParen:
-                return left;
-            default:
-                throw new QuangSyntaxException($"expected comparison operator after expression but got \"{current.Value}\"", current.Col);
-        }
-    }
-
     private Expression? ParseFactor()
     {
         var current = Token();
@@ -134,7 +69,7 @@ internal class Parser
 
     internal Expression? ParseTerm()
     {
-        var left = ParseFactor();
+        var left = ParseComparison();
 
         while (!IsEmpty())
         {
@@ -144,12 +79,118 @@ internal class Parser
 
             AdvanceCursor();
 
-            var right = ParseFactor();
+            var right = ParseComparison();
 
             left = new BinaryExpression(left!, BinaryOperator.And, right!);
         }
 
         return left;
+    }
+
+    internal Expression? ParseComparison()
+    {
+        var left = ParseUnary();
+
+        if (IsEmpty()) return left;
+
+        var current = Token();
+
+        switch (current.Kind)
+        {
+            case TokenKind.EqKeyword:
+            case TokenKind.NeKeyword:
+            case TokenKind.GtKeyword:
+            case TokenKind.LtKeyword:
+            case TokenKind.GteKeyword:
+            case TokenKind.LteKeyword:
+            case TokenKind.RegKeyword:
+                AdvanceCursor();
+
+                var right = ParseUnary();
+
+                var op = current.Kind switch
+                {
+                    TokenKind.EqKeyword => BinaryOperator.Eq,
+                    TokenKind.NeKeyword => BinaryOperator.Ne,
+                    TokenKind.GtKeyword => BinaryOperator.Gt,
+                    TokenKind.LtKeyword => BinaryOperator.Lt,
+                    TokenKind.GteKeyword => BinaryOperator.Gte,
+                    TokenKind.LteKeyword => BinaryOperator.Lte,
+                    TokenKind.RegKeyword => BinaryOperator.Reg,
+                    _ => throw new QuangSyntaxException($"unexpected token \"{current.Value}\"", current.Col),
+                };
+
+                return new BinaryExpression(left!, op, right!);
+            case TokenKind.OrKeyword:
+            case TokenKind.AndKeyword:
+            case TokenKind.CloseParen:
+                return left;
+            default:
+                throw new QuangSyntaxException($"expected comparison operator after expression but got \"{current.Value}\"", current.Col);
+        }
+    }
+
+    private Expression? ParseUnary()
+    {
+        if (IsEmpty()) return null;
+
+        var current = Token();
+
+        if (current.Kind == TokenKind.NotKeyword)
+        {
+            AdvanceCursor();
+
+            var unary = ParseUnary();
+
+            if (unary is null)
+            {
+                throw new QuangSyntaxException("expected an expression after 'not'", current.Col);
+            }
+
+            return new UnaryExpression(unary, UnaryOperator.Not);
+        }
+
+        return ParsePrimary();
+    }
+
+    private Expression? ParsePrimary()
+    {
+        if (IsEmpty()) throw new QuangSyntaxException("missing token", Last().Col);
+
+        var current = Token();
+
+        if (current.Kind == TokenKind.OpenParen)
+        {
+            AdvanceCursor();
+
+            var expr = ParseExpression();
+
+            if (IsEmpty()) throw new QuangSyntaxException("missing ')'", Last().Col);
+
+            current = Token();
+
+            if (current.Kind != TokenKind.CloseParen)
+                throw new QuangSyntaxException($"expected ')' but got \"{current.Value}\"", current.Col);
+
+            AdvanceCursor();
+
+            return expr;
+        }
+
+        AdvanceCursor();
+
+        return current.Kind switch
+        {
+            TokenKind.Integer => new IntegerExpression(int.Parse(current.Value)),
+            TokenKind.Float => new FloatExpression(float.Parse(current.Value)),
+            TokenKind.TrueKeyword => new BoolExpression(true),
+            TokenKind.FalseKeyword => new BoolExpression(false),
+            TokenKind.NilKeyword => new NilExpression(),
+            TokenKind.Atom => new AtomExpression((Atom)current.Value),
+            TokenKind.Symbol => new SymbolExpression(current.Value),
+            TokenKind.String => new StringExpression(UnescapeString(current.Value)),
+            _ => throw new QuangSyntaxException($"unexpected token \"{current.Value}\"", current.Col),
+        };
     }
 
     private bool IsEmpty() => _cursor >= _size;

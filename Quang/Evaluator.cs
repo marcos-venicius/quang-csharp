@@ -223,11 +223,27 @@ public sealed class Evaluator
         return false;
     }
 
+    private bool EvaluateUnaryExpression(UnaryExpression unary)
+    {
+        var op = unary.Operator;
+
+        var expr = unary.Expr;
+
+        switch (op)
+        {
+            case UnaryOperator.Not:
+                return !EvaluateExpression(expr);
+            default:
+                throw new QuangSyntaxException($"could not evaluate {op.ToSymbol()} operator");
+        }
+    }
+
     private bool EvaluateExpression(Expression? expr)
     {
         return expr switch
         {
             BinaryExpression binary => EvaluateBinaryExpression(binary),
+            UnaryExpression unary => EvaluateUnaryExpression(unary),
             BoolExpression boolExpr => boolExpr.Value,
             _ => throw new QuangSyntaxException($"could not parse expression kind {expr?.DisplayName}"),
         };

@@ -320,4 +320,37 @@ public class EvaluatorTests
         result = evaluator.Evaluate();
         Assert.True(result);
     }
+
+    [Fact]
+    public void Evaluate_NotUnaryOperator()
+    {
+        List<(string, int, string, bool)> tests = [
+            ("not (status gte 400)", 300, "", true),
+            ("not (status gte 400)", 400, "", false),
+            ("not not (status gte 400)", 400, "", true),
+            ("not true or not false", 400, "", true),
+            ("not (not true or not false)", 400, "", false),
+            ("not (content reg 'hello')", 400, "hello world", false),
+            ("not (content reg 'hey')", 400, "hello world", true),
+            ("1 eq 1 and not (content reg 'hey')", 400, "hello world", true),
+        ];
+
+        foreach (var (data, status, content, expected) in tests) {
+            var tokens = new Lexer(data).Lex();
+            var parser = new Parser(tokens);
+
+            var expr = parser.ParseExpression();
+
+            Assert.NotNull(expr);
+
+            var evaluator = new Evaluator(expr, []);
+
+            evaluator.AddIntegerVar("status", status);
+            evaluator.AddStringVar("content", content);
+
+            var actual = evaluator.Evaluate();
+
+            Assert.Equal(expected, actual);
+        }
+    }
 }
