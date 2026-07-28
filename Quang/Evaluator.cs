@@ -137,6 +137,16 @@ public sealed class Evaluator
         }
     }
 
+    /// <summary>
+    /// Turns an operand into a value, so a nested expression can be compared as a boolean,
+    /// like in "(status eq 200 or status eq 201) eq true".
+    /// </summary>
+    private Expression ResolveOperand(Expression expr) => expr switch
+    {
+        BinaryExpression or UnaryExpression => new BoolExpression(EvaluateExpression(expr)),
+        _ => LazyEvalVar(expr),
+    };
+
     private static bool BinaryComparison(long left, BinaryOperator op, long right)
     {
         return op switch
@@ -248,11 +258,15 @@ public sealed class Evaluator
         if (op == BinaryOperator.Or)
             return EvaluateExpression(binary.Left) || EvaluateExpression(binary.Right);
 
-        var left = LazyEvalVar(binary.Left);
-        var right = LazyEvalVar(binary.Right);
+        var left = ResolveOperand(binary.Left);
+        var right = ResolveOperand(binary.Right);
 
         if (left is NilExpression || right is NilExpression)
         {
+            // an empty value never matches a pattern
+            if (op == BinaryOperator.Reg && left is NilExpression && right is StringExpression)
+                return false;
+
             var equal = IsEmptyValue(left) && IsEmptyValue(right);
 
             return op switch

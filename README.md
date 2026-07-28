@@ -66,7 +66,7 @@ So `not status eq 400 and active` means `(not (status eq 400)) and active`.
 
 `nil` is the empty value. `name eq nil` is true when `name` was declared as nil
 (`AddNilVar`, or a null value passed to `AddStringVar`) or when it holds an empty string.
-Zero, `false` and empty atoms are **not** empty.
+Zero, `false` and empty atoms are **not** empty. An empty value never matches a `reg` pattern.
 
 **Booleans**
 
@@ -89,6 +89,11 @@ So, we could query something like:
 
 > [!TIP]
 > This repository is a port of [Quang](https://github.com/marcos-venicius/quang) for CSharp. See the original repository for more information.
+
+> [!NOTE]
+> Building a natural language search on top of Quang? [LLM.md](./LLM.md) is a complete
+> specification of the language written to be pasted into a model's context, with a prompt
+> template, worked examples, the mistakes models usually make, and the full error catalog.
 
 # How to Use
 

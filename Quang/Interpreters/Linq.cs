@@ -115,6 +115,20 @@ public sealed class LinqInterpreter<T>
     {
         var op = binary.Operator;
 
+        // a nested expression can be compared as a boolean, like in "(a or b) eq true"
+        if (binary.Left is BinaryExpression or UnaryExpression || binary.Right is BinaryExpression or UnaryExpression)
+        {
+            if (op is not (BinaryOperator.Eq or BinaryOperator.Ne))
+                throw new QuangEvaluationException($"operator '{op.ToSymbol()}' cannot be applied to a boolean expression.");
+
+            var nestedLeft = Visit(binary.Left);
+            var nestedRight = Visit(binary.Right);
+
+            return op == BinaryOperator.Eq
+                ? LinqExpression.Equal(nestedLeft, nestedRight)
+                : LinqExpression.NotEqual(nestedLeft, nestedRight);
+        }
+
         var leftSymbol = binary.Left as SymbolExpression;
         var rightSymbol = binary.Right as SymbolExpression;
 
@@ -196,9 +210,14 @@ public sealed class LinqInterpreter<T>
 
         var patternConstant = LinqExpression.Constant(pattern.Value, typeof(string));
 
-        return _regStrategy == RegStrategy.Contains
+        var match = _regStrategy == RegStrategy.Contains
             ? LinqExpression.Call(member, ContainsMethod, patternConstant)
             : LinqExpression.Call(RegexIsMatchMethod, member, patternConstant);
+
+        // an empty value never matches a pattern, and matching against null would throw
+        return LinqExpression.AndAlso(
+            LinqExpression.NotEqual(member, LinqExpression.Constant(null, typeof(string))),
+            match);
     }
 
     private MemberExpression GetMemberExpression(SymbolExpression symbol)

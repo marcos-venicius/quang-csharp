@@ -46,6 +46,10 @@ features that were documented but missing, or crashes that escaped the language 
 - A backslash that is not `\'` or `\\` is now kept as it is, so regex patterns like
   `identifier reg 'ML-\d+'` (from the README) lex correctly.
 - `and`/`or` now short circuit, so the right side is only evaluated when it is needed.
+- Matching an empty value against a pattern (`path reg '^/api/'` where `path` is null) raised an
+  error in the evaluator and crashed the LINQ interpreter with an `ArgumentNullException` in the
+  middle of a scan. An empty value now simply does not match, and the translated predicate is null
+  safe (`field != null && ...`), which EF Core still turns into SQL.
 - Regexes are compiled once per pattern and run with a timeout; an invalid pattern raises a
   `QuangEvaluationException` instead of a raw `ArgumentException`.
 - The type checker used to run again for every `Evaluator()` call, which meant re-validating the
@@ -61,3 +65,8 @@ features that were documented but missing, or crashes that escaped the language 
 - `Atom` implements `IEquatable<Atom>` and validates its format, so a value like `"m"`
   (missing the `:`) fails loudly instead of never matching.
 - `SyntaxExpectSymbol` reports a duplicated symbol with a proper message.
+- A nested expression can be compared as a boolean, like `(status eq 200 or status eq 201) eq true`,
+  which used to pass the type checker and throw at evaluation time.
+- `LLM.md`: a full specification of the language meant to be pasted into a model's context, so an
+  application can translate natural language into Quang queries. Every example in it is covered by
+  `Quang.Tests/DocumentationTests.cs`.

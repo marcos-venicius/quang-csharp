@@ -236,6 +236,16 @@ public class LinqInterpreterTests
     }
 
     [Fact]
+    public void Translate_NestedExpressionComparedAsBoolean_Works()
+    {
+        var func = CompileQuang("(Age gt 18 or IsActive) eq true");
+
+        Assert.True(func(new TestUser { Age = 20, IsActive = false }));
+        Assert.True(func(new TestUser { Age = 10, IsActive = true }));
+        Assert.False(func(new TestUser { Age = 10, IsActive = false }));
+    }
+
+    [Fact]
     public void Translate_UnknownField_ThrowsAQuangError()
     {
         var quang = new Quang("Missing eq 1")

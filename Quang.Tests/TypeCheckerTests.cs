@@ -83,6 +83,23 @@ public class TypeCheckerTests
     }
 
     [Fact]
+    public void Evaluate_NestedExpressionComparedAsBoolean_Works()
+    {
+        var evaluator = Schema("(age gt 18 or active) eq true").Evaluator();
+
+        evaluator.AddIntegerVar("age", 20).AddBoolVar("active", false);
+        Assert.True(evaluator.Evaluate());
+
+        evaluator.AddIntegerVar("age", 10);
+        Assert.False(evaluator.Evaluate());
+
+        var negated = Schema("not (age gt 18) ne false").Evaluator();
+
+        negated.AddIntegerVar("age", 20);
+        Assert.False(negated.Evaluate());
+    }
+
+    [Fact]
     public void Evaluate_StringOrdering_Works()
     {
         var evaluator = Schema("name gt 'm'").Evaluator();

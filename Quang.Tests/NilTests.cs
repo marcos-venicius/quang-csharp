@@ -51,6 +51,21 @@ public class NilTests
     }
 
     [Fact]
+    public void Evaluate_NilAgainstAPattern_IsFalse()
+    {
+        var evaluator = Build("name reg 'ma'");
+
+        evaluator.AddNilVar("name");
+        Assert.False(evaluator.Evaluate());
+
+        evaluator.AddStringVar("name", null);
+        Assert.False(evaluator.Evaluate());
+
+        evaluator.AddStringVar("name", "marcos");
+        Assert.True(evaluator.Evaluate());
+    }
+
+    [Fact]
     public void Evaluate_NilWithOrderedOperators_Throws()
     {
         var evaluator = Build("name lt nil");
