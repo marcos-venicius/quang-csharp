@@ -1,8 +1,10 @@
-﻿namespace Quang;
+namespace Quang;
 
 internal class Lexer
 {
     private int _cursor, _bot;
+    private int _line, _lineStart;
+    private int _botLine, _botCol;
     private readonly int _size;
     private readonly string _content;
     private readonly List<Token> _tokens = [];
@@ -12,6 +14,8 @@ internal class Lexer
         _content = query;
         _cursor = 0;
         _bot = 0;
+        _line = 1;
+        _lineStart = 0;
         _size = query.Length;
     }
 
@@ -24,6 +28,8 @@ internal class Lexer
             if (IsEmpty()) break;
 
             _bot = _cursor;
+            _botLine = _line;
+            _botCol = Col();
 
             var chr = Char();
 
@@ -35,8 +41,8 @@ internal class Lexer
                 case ':': LexAtom(); break;
                 default: {
                     if (IsDigit(chr)) LexNumber();
-                    else if (IsSymbol(chr)) LexSymbolOrKeyword();
-                    else throw new QuangSyntaxException($"unexpected character \"{chr}\"", _cursor+1);
+                    else if (IsSymbolStart(chr)) LexSymbolOrKeyword();
+                    else throw new QuangSyntaxException($"unexpected character \"{chr}\"", _line, Col());
                 } break;
             }
         }
@@ -44,20 +50,30 @@ internal class Lexer
         return _tokens;
     }
 
-    private bool IsSymbol(char chr) => chr == '_' || (chr >= 'a' && chr <= 'z') || (chr >= 'A' && chr <= 'Z');
-    private bool IsDigit(char chr) => chr >= '0' && chr <= '9';
+    private static bool IsSymbolStart(char chr) => chr == '_' || (chr >= 'a' && chr <= 'z') || (chr >= 'A' && chr <= 'Z');
+    private static bool IsSymbolPart(char chr) => IsSymbolStart(chr) || IsDigit(chr);
+    private static bool IsDigit(char chr) => chr >= '0' && chr <= '9';
     private bool IsEmpty() => _cursor >= _size;
     private bool IsEmptyAhead() => _cursor + 1 >= _size;
     private char Char() => IsEmpty() ? '\0' : _content[_cursor];
-    private char CharAhead() => IsEmptyAhead() ? '\0' : _content[_cursor + 1];
+    private int Col() => _cursor - _lineStart + 1;
+
     private void AdvanceCursor()
     {
-        if (!IsEmpty()) _cursor++;
+        if (IsEmpty()) return;
+
+        if (_content[_cursor] == '\n')
+        {
+            _line++;
+            _lineStart = _cursor + 1;
+        }
+
+        _cursor++;
     }
 
     private void TrimWhitespaces()
     {
-        while (!IsEmpty() && Char() == ' ') AdvanceCursor();
+        while (!IsEmpty() && char.IsWhiteSpace(Char())) AdvanceCursor();
     }
 
     private void LexString()
@@ -66,28 +82,22 @@ internal class Lexer
 
         while (!IsEmpty() && Char() != '\'')
         {
+            // "\'" and "\\" are escapes, anything else after a backslash is kept as it is,
+            // so regex patterns like 'ML-\d+' can be written without doubling the backslash.
             if (Char() == '\\')
             {
                 if (IsEmptyAhead())
-                    throw new QuangSyntaxException("unterminated string literal", _bot + 1);
+                    throw new QuangSyntaxException("unterminated string literal", _botLine, _botCol);
 
-                switch (CharAhead())
-                {
-                    case '\'':
-                    case '\\':
-                        AdvanceCursor();
-                        break;
-                    default:
-                        throw new QuangSyntaxException("invalid scape sequence", _cursor + 1);
-                }
+                AdvanceCursor();
             }
 
             AdvanceCursor();
         }
 
-        if (IsEmpty()) throw new QuangSyntaxException("unterminated string literal", _bot + 1);
+        if (IsEmpty()) throw new QuangSyntaxException("unterminated string literal", _botLine, _botCol);
 
-        var token = new Token(_content[(_bot + 1) .. _cursor], TokenKind.String, _bot + 1);
+        var token = new Token(_content[(_bot + 1) .. _cursor], TokenKind.String, _botLine, _botCol);
 
         _tokens.Add(token);
 
@@ -100,16 +110,16 @@ internal class Lexer
 
         var atomNameSize = 0;
 
-        while (!IsEmpty() && IsSymbol(Char()))
+        while (!IsEmpty() && (atomNameSize == 0 ? IsSymbolStart(Char()) : IsSymbolPart(Char())))
         {
             AdvanceCursor();
             atomNameSize++;
         }
 
         if (atomNameSize == 0)
-            throw new QuangSyntaxException("missing atom name", _cursor);
+            throw new QuangSyntaxException("missing atom name", _botLine, _botCol);
 
-        var token = new Token(_content[_bot .. _cursor], TokenKind.Atom, _bot + 1);
+        var token = new Token(_content[_bot .. _cursor], TokenKind.Atom, _botLine, _botCol);
 
         _tokens.Add(token);
     }
@@ -128,19 +138,19 @@ internal class Lexer
             while (!IsEmpty() && IsDigit(Char())) AdvanceCursor();
         }
 
-        var token = new Token(_content[_bot .. _cursor], isFloat ? TokenKind.Float : TokenKind.Integer, _bot + 1);
+        var token = new Token(_content[_bot .. _cursor], isFloat ? TokenKind.Float : TokenKind.Integer, _botLine, _botCol);
 
         _tokens.Add(token);
     }
 
     private void LexSymbolOrKeyword()
     {
-        while (!IsEmpty() && IsSymbol(Char())) AdvanceCursor();
+        while (!IsEmpty() && IsSymbolPart(Char())) AdvanceCursor();
 
         var content = _content[_bot .. _cursor];
         var kind = Keywords.MatchKeywordOrSymbol(content);
 
-        var token = new Token(content, kind, _bot + 1);
+        var token = new Token(content, kind, _botLine, _botCol);
 
         _tokens.Add(token);
     }
@@ -149,7 +159,7 @@ internal class Lexer
     {
         AdvanceCursor();
 
-        var token = new Token(_content[_bot .. _cursor], kind, _bot + 1);
+        var token = new Token(_content[_bot .. _cursor], kind, _botLine, _botCol);
 
         _tokens.Add(token);
     }

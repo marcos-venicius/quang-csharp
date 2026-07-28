@@ -4,9 +4,10 @@ public sealed class Quang(string query)
 {
     private readonly string _query = query;
     private bool _initialized = false;
+    private bool _validated = false;
     private Expression? _expression;
     private readonly Dictionary<string, IExpressionValueTypeInfo> _expectedSymbols = [];
-    internal readonly HashSet<string> _expectedAtoms = [];
+    private readonly HashSet<string> _expectedAtoms = [];
 
     public Quang Init()
     {
@@ -17,6 +18,8 @@ public sealed class Quang(string query)
         _expression = parser.Parse();
 
         _initialized = true;
+        _validated = false;
+
         return this;
     }
 
@@ -27,7 +30,10 @@ public sealed class Quang(string query)
     /// </summary>
     public Quang SyntaxExpectSymbol(string name, IExpressionValueTypeInfo valueType)
     {
-        _expectedSymbols.Add(name, valueType);
+        if (!_expectedSymbols.TryAdd(name, valueType))
+            throw new QuangException($"the symbol '{name}' was already declared");
+
+        _validated = false;
 
         return this;
     }
@@ -39,7 +45,11 @@ public sealed class Quang(string query)
     /// </summary>
     public Quang SyntaxExpectAtom(string atom)
     {
+        Atom.Validate(atom);
+
         _expectedAtoms.Add(atom);
+
+        _validated = false;
 
         return this;
     }
@@ -51,25 +61,31 @@ public sealed class Quang(string query)
     /// </summary>
     public Evaluator Evaluator()
     {
-        if (!_initialized)
-            throw new InvalidOperationException("Quang must be initialized before evaluation.");
-
-        var typeChecker = new TypeChecker(_expectedSymbols, _expectedAtoms);
-
-        typeChecker.Validate(_expression);
+        EnsureValidated();
 
         return new Evaluator(_expression, _expectedAtoms);
     }
 
     internal Expression? GetExpressionTree()
     {
-        if (!_initialized)
-            throw new InvalidOperationException("Quang must be initialized before type checking.");
-
-        var typeChecker = new TypeChecker(_expectedSymbols, _expectedAtoms);
-
-        typeChecker.Validate(_expression);
+        EnsureValidated();
 
         return _expression;
+    }
+
+    /// <summary>
+    /// The query is type checked once and the result is reused, so evaluating a query
+    /// over thousands of rows does not re-validate the tree over and over again.
+    /// </summary>
+    private void EnsureValidated()
+    {
+        if (!_initialized)
+            throw new InvalidOperationException("Quang must be initialized before evaluation.");
+
+        if (_validated) return;
+
+        new TypeChecker(_expectedSymbols, _expectedAtoms).Validate(_expression);
+
+        _validated = true;
     }
 }

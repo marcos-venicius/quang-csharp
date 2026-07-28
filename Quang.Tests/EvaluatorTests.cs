@@ -165,7 +165,7 @@ public class EvaluatorTests
 
             var evaluator = new Evaluator(expr, []);
 
-            var ex = Assert.Throws<QuangSyntaxException>(() => evaluator.Evaluate());
+            var ex = Assert.Throws<QuangEvaluationException>(() => evaluator.Evaluate());
             Assert.Equal(test.Error, ex.Message);
         }
     }
@@ -218,12 +218,12 @@ public class EvaluatorTests
         var evaluator = new Evaluator(expr, []);
 
         // Variable does not exist
-        var ex1 = Assert.Throws<QuangSyntaxException>(() => evaluator.Evaluate());
+        var ex1 = Assert.Throws<QuangEvaluationException>(() => evaluator.Evaluate());
         Assert.Equal("error: the variable 'size' does not exist", ex1.Message);
 
         // Add string variable, incompatible operation
         evaluator.AddStringVar("size", "anything");
-        var ex2 = Assert.Throws<QuangSyntaxException>(() => evaluator.Evaluate());
+        var ex2 = Assert.Throws<QuangEvaluationException>(() => evaluator.Evaluate());
         Assert.Equal("error: you cannot do such operation 'string gt integer'", ex2.Message);
 
         // Add integer variable 41
@@ -272,12 +272,12 @@ public class EvaluatorTests
         var evaluator = new Evaluator(expr, []);
 
         // Variable does not exist
-        var ex1 = Assert.Throws<QuangSyntaxException>(() => evaluator.Evaluate());
+        var ex1 = Assert.Throws<QuangEvaluationException>(() => evaluator.Evaluate());
         Assert.Equal("error: the variable 'method' does not exist", ex1.Message);
 
         // Add atom variable but target atom missing
         evaluator.AddAtomVar("method", new Atom(":get"));
-        var ex2 = Assert.Throws<QuangSyntaxException>(() => evaluator.Evaluate());
+        var ex2 = Assert.Throws<QuangEvaluationException>(() => evaluator.Evaluate());
         Assert.Equal("error: the atom ':get' does not exist", ex2.Message);
 
         evaluator = new Evaluator(expr, [":get"]);
@@ -293,7 +293,7 @@ public class EvaluatorTests
 
         // Add string variable, incompatible operation
         evaluator.AddStringVar("method", "get");
-        var ex3 = Assert.Throws<QuangSyntaxException>(() => evaluator.Evaluate());
+        var ex3 = Assert.Throws<QuangEvaluationException>(() => evaluator.Evaluate());
         Assert.Equal("error: you cannot do such operation 'string eq atom'", ex3.Message);
     }
 
@@ -351,6 +351,49 @@ public class EvaluatorTests
             var actual = evaluator.Evaluate();
 
             Assert.Equal(expected, actual);
+        }
+    }
+
+    [Fact]
+    public void Evaluate_LogicalOperators_ShortCircuit()
+    {
+        // the right side is not evaluated when the left side already decides the result,
+        // otherwise the missing variable would throw
+        var and = new Parser(new Lexer("false and missing eq 1").Lex()).Parse();
+
+        Assert.False(new Evaluator(and, []).Evaluate());
+
+        var or = new Parser(new Lexer("true or missing eq 1").Lex()).Parse();
+
+        Assert.True(new Evaluator(or, []).Evaluate());
+    }
+
+    [Fact]
+    public void Evaluate_InvalidRegexPattern_ThrowsAQuangError()
+    {
+        var expr = new Parser(new Lexer("'abc' reg '['").Lex()).Parse();
+
+        var ex = Assert.Throws<QuangEvaluationException>(() => new Evaluator(expr, []).Evaluate());
+
+        Assert.Contains("invalid regex pattern", ex.Message);
+    }
+
+    [Fact]
+    public void Evaluate_BooleanComparisons_ReturnExpectedResults()
+    {
+        var tests = new Dictionary<string, bool>
+        {
+            { "true eq true", true },
+            { "true eq false", false },
+            { "true ne false", true },
+            { "false ne false", false },
+        };
+
+        foreach (var (input, expected) in tests)
+        {
+            var expr = new Parser(new Lexer(input).Lex()).Parse();
+
+            Assert.Equal(expected, new Evaluator(expr, []).Evaluate());
         }
     }
 }

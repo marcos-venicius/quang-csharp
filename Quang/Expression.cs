@@ -9,8 +9,8 @@ public abstract record ExpressionValueType(string DisplayName) : Expression(Disp
 
 public record NilExpression() : ExpressionValueType("nil");
 public record BoolExpression(bool Value) : ExpressionValueType("bool");
-public record FloatExpression(float Value) : ExpressionValueType("float");
-public record IntegerExpression(int Value) : ExpressionValueType("integer");
+public record FloatExpression(double Value) : ExpressionValueType("float");
+public record IntegerExpression(long Value) : ExpressionValueType("integer");
 public record SymbolExpression(string Value) : ExpressionValueType("symbol");
 public record StringExpression(string Value) : ExpressionValueType("string");
 public record AtomExpression(Atom Value) : ExpressionValueType("atom");
@@ -48,7 +48,20 @@ internal static class BinaryOperatorExtensions
 		BinaryOperator.Reg => "reg",
 		BinaryOperator.And => "and",
 		BinaryOperator.Or => "or",
-		_ => throw new QuangSyntaxException($"unknown binary operator {op}", 1),
+		_ => throw new QuangException($"unknown binary operator {op}"),
+	};
+
+	/// <summary>
+	/// Mirrors a comparison operator, so "a lt b" becomes "b gt a".
+	/// Used when the literal shows up on the left hand side of the comparison.
+	/// </summary>
+	public static BinaryOperator Flip(this BinaryOperator op) => op switch
+	{
+		BinaryOperator.Gt => BinaryOperator.Lt,
+		BinaryOperator.Lt => BinaryOperator.Gt,
+		BinaryOperator.Gte => BinaryOperator.Lte,
+		BinaryOperator.Lte => BinaryOperator.Gte,
+		_ => op,
 	};
 }
 
@@ -57,6 +70,6 @@ internal static class UnaryOperatorExtensions
 	public static string ToSymbol(this UnaryOperator op) => op switch
 	{
 		UnaryOperator.Not => "not",
-		_ => throw new QuangSyntaxException($"unknown unary operator {op}", 1),
+		_ => throw new QuangException($"unknown unary operator {op}"),
 	};
 }

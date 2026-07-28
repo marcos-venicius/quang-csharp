@@ -1,4 +1,6 @@
-﻿using Quang;
+using System.Globalization;
+
+using Quang;
 
 if (args.Length != 1)
 {
@@ -18,14 +20,17 @@ var quang = new Quang.Quang(args[0])
     .SyntaxExpectSymbol("username", new ExpressionValueTypeInfo<StringExpression>())
     .SyntaxExpectSymbol("sex", new ExpressionValueTypeInfo<AtomExpression>());
 
+// the evaluator is built once and reused, only the variables change per row
+var evaluator = quang.Evaluator();
+
 foreach (var line in content)
 {
     var username = line[0].Trim();
-    var age = int.Parse(line[1]);
+    var age = int.Parse(line[1], CultureInfo.InvariantCulture);
     var sex = line[2].ToLower().Trim();
-    var weight = float.Parse(line[3]);
+    var weight = double.Parse(line[3], CultureInfo.InvariantCulture);
 
-    var evaluator = quang.Evaluator()
+    evaluator
         .AddStringVar("username", username)
         .AddAtomVar("sex", $":{sex}")
         .AddIntegerVar("age", age)

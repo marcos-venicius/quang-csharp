@@ -11,7 +11,8 @@
     <Title>Quang</Title>
     <Description>Quang is meant to be a "query" language for your tools.</Description>
     <Authors>Marcos Venicius</Authors>
-    <Version>2.1.0</Version>
+    <Version>3.0.0</Version>
+    <PackageReleaseNotes>Stability release: culture independent number literals, nil support, boolean variables and comparisons, numeric promotion, string ordering, strict syntax errors, 64 bit integers and floats, a proper exception hierarchy and a LINQ interpreter that matches the evaluator. See CHANGELOG.md.</PackageReleaseNotes>
     <PackageId>Quang</PackageId>
     <PackageTags>quang;query-language;language</PackageTags>
     <Copyright>Copyright (c) marcos-venicius 2026</Copyright>

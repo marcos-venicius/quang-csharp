@@ -1,7 +1,19 @@
+using System.Globalization;
 using System.Text;
 
 namespace Quang;
 
+/// <summary>
+/// Grammar:
+///
+///   expression := term ('or' term)*
+///   term       := factor ('and' factor)*
+///   factor     := 'not' factor | comparison
+///   comparison := primary (cmp_op primary)?
+///   primary    := '(' expression ')' | literal | symbol
+///
+/// 'not' sits below the comparison, so "not status eq 400" means "not (status eq 400)".
+/// </summary>
 internal class Parser
 {
     private readonly List<Token> _tokens;
@@ -15,17 +27,28 @@ internal class Parser
         _size = tokens.Count;
     }
 
+    /// <summary>
+    /// Parses the whole token stream. Returns null when the query is empty.
+    /// Every token must be consumed, otherwise the query is malformed.
+    /// </summary>
     internal Expression? Parse()
     {
         if (IsEmpty()) return null;
 
-        return ParseExpression();
+        var expression = ParseExpression();
+
+        if (!IsEmpty())
+        {
+            var token = Token();
+
+            throw new QuangSyntaxException($"unexpected token \"{token.Value}\"", token.Line, token.Col);
+        }
+
+        return expression;
     }
 
-    internal Expression? ParseExpression()
+    internal Expression ParseExpression()
     {
-        if (IsEmpty()) return null;
-
         var left = ParseTerm();
 
         while (!IsEmpty())
@@ -36,40 +59,20 @@ internal class Parser
 
             AdvanceCursor();
 
+            if (IsEmpty())
+                throw new QuangSyntaxException("expected an expression after 'or'", current.Line, current.Col);
+
             var right = ParseTerm();
 
-            left = new BinaryExpression(left!, BinaryOperator.Or, right!);
+            left = new BinaryExpression(left, BinaryOperator.Or, right);
         }
 
         return left;
     }
 
-    private Expression? ParseFactor()
+    internal Expression ParseTerm()
     {
-        var current = Token();
-
-        if (current.Kind == TokenKind.OpenParen)
-        {
-            AdvanceCursor();
-
-            var expr = ParseExpression();
-
-            current = Token();
-
-            if (current.Kind != TokenKind.CloseParen)
-                throw new QuangSyntaxException($"expected ')' but got \"{current.Value}\"", current.Col);
-
-            AdvanceCursor();
-
-            return expr;
-        }
-
-        return ParseComparison();
-    }
-
-    internal Expression? ParseTerm()
-    {
-        var left = ParseComparison();
+        var left = ParseFactor();
 
         while (!IsEmpty())
         {
@@ -79,17 +82,37 @@ internal class Parser
 
             AdvanceCursor();
 
-            var right = ParseComparison();
+            if (IsEmpty())
+                throw new QuangSyntaxException("expected an expression after 'and'", current.Line, current.Col);
 
-            left = new BinaryExpression(left!, BinaryOperator.And, right!);
+            var right = ParseFactor();
+
+            left = new BinaryExpression(left, BinaryOperator.And, right);
         }
 
         return left;
     }
 
-    internal Expression? ParseComparison()
+    private Expression ParseFactor()
     {
-        var left = ParseUnary();
+        if (!IsEmpty() && Token().Kind == TokenKind.NotKeyword)
+        {
+            var current = Token();
+
+            AdvanceCursor();
+
+            if (IsEmpty())
+                throw new QuangSyntaxException("expected an expression after 'not'", current.Line, current.Col);
+
+            return new UnaryExpression(ParseFactor(), UnaryOperator.Not);
+        }
+
+        return ParseComparison();
+    }
+
+    internal Expression ParseComparison()
+    {
+        var left = ParsePrimary();
 
         if (IsEmpty()) return left;
 
@@ -106,7 +129,10 @@ internal class Parser
             case TokenKind.RegKeyword:
                 AdvanceCursor();
 
-                var right = ParseUnary();
+                if (IsEmpty())
+                    throw new QuangSyntaxException($"expected an expression after '{current.Value}'", current.Line, current.Col);
+
+                var right = ParsePrimary();
 
                 var op = current.Kind switch
                 {
@@ -117,45 +143,27 @@ internal class Parser
                     TokenKind.GteKeyword => BinaryOperator.Gte,
                     TokenKind.LteKeyword => BinaryOperator.Lte,
                     TokenKind.RegKeyword => BinaryOperator.Reg,
-                    _ => throw new QuangSyntaxException($"unexpected token \"{current.Value}\"", current.Col),
+                    _ => throw new QuangSyntaxException($"unexpected token \"{current.Value}\"", current.Line, current.Col),
                 };
 
-                return new BinaryExpression(left!, op, right!);
+                return new BinaryExpression(left, op, right);
             case TokenKind.OrKeyword:
             case TokenKind.AndKeyword:
             case TokenKind.CloseParen:
                 return left;
             default:
-                throw new QuangSyntaxException($"expected comparison operator after expression but got \"{current.Value}\"", current.Col);
+                throw new QuangSyntaxException($"expected comparison operator after expression but got \"{current.Value}\"", current.Line, current.Col);
         }
     }
 
-    private Expression? ParseUnary()
+    private Expression ParsePrimary()
     {
-        if (IsEmpty()) return null;
-
-        var current = Token();
-
-        if (current.Kind == TokenKind.NotKeyword)
+        if (IsEmpty())
         {
-            AdvanceCursor();
+            var last = Last();
 
-            var unary = ParseUnary();
-
-            if (unary is null)
-            {
-                throw new QuangSyntaxException("expected an expression after 'not'", current.Col);
-            }
-
-            return new UnaryExpression(unary, UnaryOperator.Not);
+            throw new QuangSyntaxException("unexpected end of the query", last.Line, last.Col);
         }
-
-        return ParsePrimary();
-    }
-
-    private Expression? ParsePrimary()
-    {
-        if (IsEmpty()) throw new QuangSyntaxException("missing token", Last().Col);
 
         var current = Token();
 
@@ -163,14 +171,16 @@ internal class Parser
         {
             AdvanceCursor();
 
+            if (IsEmpty()) throw new QuangSyntaxException("missing ')'", current.Line, current.Col);
+
             var expr = ParseExpression();
 
-            if (IsEmpty()) throw new QuangSyntaxException("missing ')'", Last().Col);
+            if (IsEmpty()) throw new QuangSyntaxException("missing ')'", Last().Line, Last().Col);
 
-            current = Token();
+            var close = Token();
 
-            if (current.Kind != TokenKind.CloseParen)
-                throw new QuangSyntaxException($"expected ')' but got \"{current.Value}\"", current.Col);
+            if (close.Kind != TokenKind.CloseParen)
+                throw new QuangSyntaxException($"expected ')' but got \"{close.Value}\"", close.Line, close.Col);
 
             AdvanceCursor();
 
@@ -181,16 +191,34 @@ internal class Parser
 
         return current.Kind switch
         {
-            TokenKind.Integer => new IntegerExpression(int.Parse(current.Value)),
-            TokenKind.Float => new FloatExpression(float.Parse(current.Value)),
+            TokenKind.Integer => ParseInteger(current),
+            TokenKind.Float => ParseFloat(current),
             TokenKind.TrueKeyword => new BoolExpression(true),
             TokenKind.FalseKeyword => new BoolExpression(false),
             TokenKind.NilKeyword => new NilExpression(),
-            TokenKind.Atom => new AtomExpression((Atom)current.Value),
+            TokenKind.Atom => new AtomExpression(new Atom(current.Value)),
             TokenKind.Symbol => new SymbolExpression(current.Value),
             TokenKind.String => new StringExpression(UnescapeString(current.Value)),
-            _ => throw new QuangSyntaxException($"unexpected token \"{current.Value}\"", current.Col),
+            _ => throw new QuangSyntaxException($"unexpected token \"{current.Value}\"", current.Line, current.Col),
         };
+    }
+
+    // Literals are always parsed with the invariant culture, otherwise "1.5" would mean 15
+    // on any machine where the decimal separator is a comma.
+    private static IntegerExpression ParseInteger(Token token)
+    {
+        if (!long.TryParse(token.Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var value))
+            throw new QuangSyntaxException($"integer literal \"{token.Value}\" is out of range", token.Line, token.Col);
+
+        return new IntegerExpression(value);
+    }
+
+    private static FloatExpression ParseFloat(Token token)
+    {
+        if (!double.TryParse(token.Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var value))
+            throw new QuangSyntaxException($"float literal \"{token.Value}\" is out of range", token.Line, token.Col);
+
+        return new FloatExpression(value);
     }
 
     private bool IsEmpty() => _cursor >= _size;
@@ -201,6 +229,8 @@ internal class Parser
         if (!IsEmpty()) _cursor++;
     }
 
+    // Only "\'" and "\\" are escape sequences. Any other backslash is part of the string,
+    // which keeps regex patterns like 'ML-\d+' readable.
     private static string UnescapeString(string text)
     {
         var sb = new StringBuilder();
@@ -209,7 +239,8 @@ internal class Parser
 
         while (i < text.Length)
         {
-            if (text[i] == '\\') i++;
+            if (text[i] == '\\' && i + 1 < text.Length && (text[i + 1] == '\'' || text[i + 1] == '\\'))
+                i++;
 
             sb.Append(text[i]);
 

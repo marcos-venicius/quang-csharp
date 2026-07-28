@@ -4,12 +4,14 @@ internal class Token
 {
     internal string Value { get; }
     internal TokenKind Kind { get; }
+    internal int Line { get; }
     internal int Col { get; }
 
-    public Token(string value, TokenKind kind, int col)
+    public Token(string value, TokenKind kind, int line, int col)
     {
         Value = value;
         Kind = kind;
+        Line = line;
         Col = col;
     }
 }

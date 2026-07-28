@@ -181,4 +181,70 @@ public class LexerTests
         var ex3 = Assert.Throws<QuangSyntaxException>(() => lexer.Lex());
         Assert.Equal("error 1:4: unterminated string literal", ex3.Message);
     }
+
+    [Fact]
+    public void Lex_BackslashesThatAreNotEscapes_AreKept()
+    {
+        var tokens = new Lexer(@"'ML-\d+'").Lex();
+
+        Assert.Single(tokens);
+        Assert.Equal(@"ML-\d+", tokens[0].Value);
+
+        var expr = new Parser(new Lexer(@"'ML-42' reg 'ML-\d+'").Lex()).Parse();
+
+        Assert.True(new Evaluator(expr, []).Evaluate());
+    }
+
+    [Fact]
+    public void Lex_AllWhitespaceKinds_AreSkipped()
+    {
+        var tokens = new Lexer("status\teq\r\n\t200").Lex();
+
+        Assert.Equal(3, tokens.Count);
+
+        Assert.Equal(TokenKind.Symbol, tokens[0].Kind);
+        Assert.Equal(TokenKind.EqKeyword, tokens[1].Kind);
+        Assert.Equal(TokenKind.Integer, tokens[2].Kind);
+    }
+
+    [Fact]
+    public void Lex_MultilineQuery_ReportsTheRightLineAndColumn()
+    {
+        var tokens = new Lexer("status eq 200\n  and active").Lex();
+
+        Assert.Equal(1, tokens[0].Line);
+        Assert.Equal(1, tokens[0].Col);
+
+        Assert.Equal(2, tokens[3].Line);
+        Assert.Equal(3, tokens[3].Col);
+
+        var ex = Assert.Throws<QuangSyntaxException>(() => new Lexer("status eq 200\n  and #").Lex());
+
+        Assert.Equal("error 2:7: unexpected character \"#\"", ex.Message);
+        Assert.Equal(2, ex.Line);
+        Assert.Equal(7, ex.Column);
+    }
+
+    [Fact]
+    public void Lex_SymbolsAndAtoms_AcceptDigits()
+    {
+        var tokens = new Lexer("user1 eq :m2 and p95 gt 10").Lex();
+
+        Assert.Equal("user1", tokens[0].Value);
+        Assert.Equal(TokenKind.Symbol, tokens[0].Kind);
+
+        Assert.Equal(":m2", tokens[2].Value);
+        Assert.Equal(TokenKind.Atom, tokens[2].Kind);
+
+        Assert.Equal("p95", tokens[4].Value);
+        Assert.Equal(TokenKind.Symbol, tokens[4].Kind);
+    }
+
+    [Fact]
+    public void Lex_AtomStartingWithADigit_Throws()
+    {
+        var ex = Assert.Throws<QuangSyntaxException>(() => new Lexer(":1").Lex());
+
+        Assert.Equal("error 1:1: missing atom name", ex.Message);
+    }
 }
