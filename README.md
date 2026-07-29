@@ -1,5 +1,7 @@
 # Quang
 
+[![.NET](https://github.com/marcos-venicius/quang-csharp/actions/workflows/dotnet.yml/badge.svg)](https://github.com/marcos-venicius/quang-csharp/actions/workflows/dotnet.yml)
+
 `Quang` is meant to be a "query" language for your tools.
 
 `Quang` extends for `Query Language`.
