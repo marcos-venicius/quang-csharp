@@ -54,6 +54,12 @@ features that were documented but missing, or crashes that escaped the language 
   `QuangEvaluationException` instead of a raw `ArgumentException`.
 - The type checker used to run again for every `Evaluator()` call, which meant re-validating the
   whole tree once per row in the usual "filter a list" loop. The result is cached now.
+- The LINQ interpreter rejected two things the language and the evaluator accept: comparing two
+  fields (`size gt latency`, now widened to the largest numeric type of the two) and using `reg`
+  with a field as the pattern or a literal as the input.
+- Ordering strings in the LINQ interpreter (`path gt '/b'`) crashed with a raw
+  `InvalidOperationException`, because expression trees have no relational operator for `string`.
+  It now goes through `string.CompareOrdinal`, which is what the evaluator does.
 - The LINQ interpreter: literals are converted to the property type (`long`, `decimal`, `int?`,
   enums, ...) instead of failing to build the expression tree; `nil` comparisons are supported;
   boolean fields can be used directly; the field may be on either side of the comparison

@@ -195,15 +195,38 @@ public class DocumentationTests
     }
 
     [Theory]
-    [InlineData("status gt latency", "comparing two fields")]
-    [InlineData("'api' reg path", "left side of 'reg' must be a field name")]
     [InlineData("status reg 'x'", "only valid for strings")]
+    [InlineData("200 eq 200", "one side of a comparison must be a field name")]
     public void DocumentedTranslatorLimits_AreRejected(string query, string expectedMessage)
     {
         var ex = Assert.ThrowsAny<QuangException>(() =>
             new Interpreters.LinqInterpreter<LogRow>().Translate(LogSchema(query)));
 
         Assert.Contains(expectedMessage, ex.Message);
+    }
+
+    [Fact]
+    public void DocumentedTranslator_ComparesFieldsAndOrdersStrings()
+    {
+        var rows = new List<LogRow>
+        {
+            new() { Status = 500, Latency = 0.2, Path = "/api/users" },
+            new() { Status = 200, Latency = 3.0, Path = "/home" },
+            new() { Status = 200, Latency = 0.1, Path = null },
+        };
+
+        // field against field, with an int promoted to a double
+        Assert.Equal(3, rows.Count(Translate("status gt latency")));
+        Assert.Equal(0, rows.Count(Translate("latency gte status")));
+
+        // ordinal string ordering, like the evaluator
+        Assert.Equal(1, rows.Count(Translate("path gt '/b'")));
+
+        // a literal can be the input of reg, and a field can be the pattern
+        Assert.Equal(1, rows.Count(Translate("'/home/nested' reg path")));
+
+        static Func<LogRow, bool> Translate(string query) =>
+            new Interpreters.LinqInterpreter<LogRow>().Translate(LogSchema(query)).Compile();
     }
 
     [Fact]

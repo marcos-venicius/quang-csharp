@@ -83,6 +83,23 @@ public class TypeCheckerTests
     }
 
     [Fact]
+    public void Evaluate_FieldAgainstField_Works()
+    {
+        var evaluator = Schema("age gte weight").Evaluator();
+
+        evaluator.AddIntegerVar("age", 80).AddFloatVar("weight", 70.5);
+        Assert.True(evaluator.Evaluate());
+
+        evaluator.AddIntegerVar("age", 70);
+        Assert.False(evaluator.Evaluate());
+
+        var strings = Schema("name gt name").Evaluator();
+
+        strings.AddStringVar("name", "marcos");
+        Assert.False(strings.Evaluate());
+    }
+
+    [Fact]
     public void Evaluate_NestedExpressionComparedAsBoolean_Works()
     {
         var evaluator = Schema("(age gt 18 or active) eq true").Evaluator();

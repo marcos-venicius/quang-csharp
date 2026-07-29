@@ -35,6 +35,9 @@ public sealed class LinqInterpreter<T>
     private static readonly MethodInfo IsNullOrEmptyMethod =
         typeof(string).GetMethod(nameof(string.IsNullOrEmpty), [typeof(string)])!;
 
+    private static readonly MethodInfo CompareOrdinalMethod =
+        typeof(string).GetMethod(nameof(string.CompareOrdinal), [typeof(string), typeof(string)])!;
+
     private readonly Dictionary<string, string> _symbolsMapping = [];
     private readonly Dictionary<string, string> _atomsMapping = [];
     private readonly RegStrategy _regStrategy;
@@ -129,11 +132,20 @@ public sealed class LinqInterpreter<T>
                 : LinqExpression.NotEqual(nestedLeft, nestedRight);
         }
 
+        // both sides of "reg" may be a string field or a string literal
+        if (op == BinaryOperator.Reg)
+            return BuildRegExpression(GetStringOperand(binary.Left), GetStringOperand(binary.Right));
+
         var leftSymbol = binary.Left as SymbolExpression;
         var rightSymbol = binary.Right as SymbolExpression;
 
+        // field against field, like "size gt latency"
         if (leftSymbol is not null && rightSymbol is not null)
-            throw new QuangEvaluationException("comparing two fields is not supported by the LINQ interpreter.");
+        {
+            var (promotedLeft, promotedRight) = Promote(GetMemberExpression(leftSymbol), GetMemberExpression(rightSymbol));
+
+            return BuildComparison(promotedLeft, promotedRight, op);
+        }
 
         MemberExpression member;
         Expression value;
@@ -155,28 +167,93 @@ public sealed class LinqInterpreter<T>
             throw new QuangEvaluationException("one side of a comparison must be a field name.");
         }
 
-        if (op == BinaryOperator.Reg)
-        {
-            if (leftSymbol is null)
-                throw new QuangEvaluationException("the left side of 'reg' must be a field name.");
-
-            return BuildRegExpression(member, value);
-        }
-
         if (value is NilExpression) return BuildNilComparison(member, op);
 
-        var constant = GetConstantExpression(member, value);
+        return BuildComparison(member, GetConstantExpression(member, value), op);
+    }
+
+    /// <summary>
+    /// Strings have no relational operators in an expression tree, so ordering them
+    /// goes through string.CompareOrdinal, which is what the Evaluator does as well.
+    /// </summary>
+    private static LinqExpression BuildComparison(LinqExpression left, LinqExpression right, BinaryOperator op)
+    {
+        if (left.Type == typeof(string) && op is BinaryOperator.Gt or BinaryOperator.Lt or BinaryOperator.Gte or BinaryOperator.Lte)
+        {
+            var comparison = LinqExpression.Call(CompareOrdinalMethod, left, right);
+            var zero = LinqExpression.Constant(0);
+
+            return op switch
+            {
+                BinaryOperator.Gt => LinqExpression.GreaterThan(comparison, zero),
+                BinaryOperator.Lt => LinqExpression.LessThan(comparison, zero),
+                BinaryOperator.Gte => LinqExpression.GreaterThanOrEqual(comparison, zero),
+                _ => LinqExpression.LessThanOrEqual(comparison, zero),
+            };
+        }
 
         return op switch
         {
-            BinaryOperator.Eq => LinqExpression.Equal(member, constant),
-            BinaryOperator.Ne => LinqExpression.NotEqual(member, constant),
-            BinaryOperator.Gt => LinqExpression.GreaterThan(member, constant),
-            BinaryOperator.Lt => LinqExpression.LessThan(member, constant),
-            BinaryOperator.Gte => LinqExpression.GreaterThanOrEqual(member, constant),
-            BinaryOperator.Lte => LinqExpression.LessThanOrEqual(member, constant),
-            _ => throw new QuangEvaluationException($"operator {op.ToSymbol()} is not supported by the LINQ interpreter.")
+            BinaryOperator.Eq => LinqExpression.Equal(left, right),
+            BinaryOperator.Ne => LinqExpression.NotEqual(left, right),
+            BinaryOperator.Gt => LinqExpression.GreaterThan(left, right),
+            BinaryOperator.Lt => LinqExpression.LessThan(left, right),
+            BinaryOperator.Gte => LinqExpression.GreaterThanOrEqual(left, right),
+            BinaryOperator.Lte => LinqExpression.LessThanOrEqual(left, right),
+            _ => throw new QuangEvaluationException($"operator '{op.ToSymbol()}' is not supported by the LINQ interpreter.")
         };
+    }
+
+    /// <summary>
+    /// Two fields can only be compared when they have the same type or when both are numeric,
+    /// in which case they are widened to the largest of the two.
+    /// </summary>
+    private static (LinqExpression Left, LinqExpression Right) Promote(LinqExpression left, LinqExpression right)
+    {
+        if (left.Type == right.Type) return (left, right);
+
+        var leftType = Nullable.GetUnderlyingType(left.Type) ?? left.Type;
+        var rightType = Nullable.GetUnderlyingType(right.Type) ?? right.Type;
+
+        if (NumericRank(leftType) == 0 || NumericRank(rightType) == 0)
+            throw new QuangEvaluationException($"cannot compare a field of type {leftType.Name} with a field of type {rightType.Name}.");
+
+        var target = NumericRank(leftType) >= NumericRank(rightType) ? leftType : rightType;
+
+        if (left.Type != leftType || right.Type != rightType)
+            target = typeof(Nullable<>).MakeGenericType(target);
+
+        return (LinqExpression.Convert(left, target), LinqExpression.Convert(right, target));
+    }
+
+    private static int NumericRank(Type type) => Type.GetTypeCode(type) switch
+    {
+        TypeCode.Byte or TypeCode.SByte => 1,
+        TypeCode.Int16 or TypeCode.UInt16 => 2,
+        TypeCode.Int32 or TypeCode.UInt32 => 3,
+        TypeCode.Int64 or TypeCode.UInt64 => 4,
+        TypeCode.Single => 5,
+        TypeCode.Double => 6,
+        TypeCode.Decimal => 7,
+        _ => 0,
+    };
+
+    private LinqExpression GetStringOperand(Expression expr)
+    {
+        switch (expr)
+        {
+            case SymbolExpression symbol:
+                var member = GetMemberExpression(symbol);
+
+                if (member.Type != typeof(string))
+                    throw new QuangEvaluationException($"operator 'reg' is only valid for strings, but '{symbol.Value}' is a {member.Type.Name}.");
+
+                return member;
+            case StringExpression str:
+                return LinqExpression.Constant(str.Value, typeof(string));
+            default:
+                throw new QuangEvaluationException($"operator 'reg' requires strings on both sides, but got {expr.DisplayName}.");
+        }
     }
 
     /// <summary>
@@ -200,25 +277,23 @@ public sealed class LinqInterpreter<T>
         return op == BinaryOperator.Eq ? comparison : LinqExpression.Not(comparison);
     }
 
-    private LinqExpression BuildRegExpression(MemberExpression member, Expression value)
+    private LinqExpression BuildRegExpression(LinqExpression input, LinqExpression pattern)
     {
-        if (member.Type != typeof(string))
-            throw new QuangEvaluationException("operator 'reg' is only valid for string fields.");
-
-        if (value is not StringExpression pattern)
-            throw new QuangEvaluationException("operator 'reg' requires a string pattern.");
-
-        var patternConstant = LinqExpression.Constant(pattern.Value, typeof(string));
-
-        var match = _regStrategy == RegStrategy.Contains
-            ? LinqExpression.Call(member, ContainsMethod, patternConstant)
-            : LinqExpression.Call(RegexIsMatchMethod, member, patternConstant);
+        LinqExpression match = _regStrategy == RegStrategy.Contains
+            ? LinqExpression.Call(input, ContainsMethod, pattern)
+            : LinqExpression.Call(RegexIsMatchMethod, input, pattern);
 
         // an empty value never matches a pattern, and matching against null would throw
-        return LinqExpression.AndAlso(
-            LinqExpression.NotEqual(member, LinqExpression.Constant(null, typeof(string))),
-            match);
+        if (pattern is not ConstantExpression) match = GuardNotNull(pattern, match);
+        if (input is not ConstantExpression) match = GuardNotNull(input, match);
+
+        return match;
     }
+
+    private static LinqExpression GuardNotNull(LinqExpression operand, LinqExpression match) =>
+        LinqExpression.AndAlso(
+            LinqExpression.NotEqual(operand, LinqExpression.Constant(null, typeof(string))),
+            match);
 
     private MemberExpression GetMemberExpression(SymbolExpression symbol)
     {

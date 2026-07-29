@@ -246,6 +246,63 @@ public class LinqInterpreterTests
     }
 
     [Fact]
+    public void Translate_FieldAgainstField_PromotesNumericTypes()
+    {
+        // long against int?
+        var scored = CompileAccount("Id lt Score");
+
+        Assert.True(scored(new TestAccount { Id = 1, Score = 2 }));
+        Assert.False(scored(new TestAccount { Id = 3, Score = 2 }));
+        Assert.False(scored(new TestAccount { Id = 1, Score = null }));
+
+        // double against decimal
+        var rich = CompileAccount("Weight lt Balance");
+
+        Assert.True(rich(new TestAccount { Weight = 70.2, Balance = 150.75m }));
+        Assert.False(rich(new TestAccount { Weight = 200.0, Balance = 150.75m }));
+
+        var equal = CompileAccount("Id eq Score");
+
+        Assert.True(equal(new TestAccount { Id = 7, Score = 7 }));
+        Assert.False(equal(new TestAccount { Id = 7, Score = 8 }));
+    }
+
+    [Fact]
+    public void Translate_StringOrdering_UsesOrdinalComparison()
+    {
+        var func = CompileQuang("Name gt 'M'");
+
+        Assert.True(func(new TestUser { Name = "Valeria" }));
+        Assert.False(func(new TestUser { Name = "Alice" }));
+
+        // ordinal: uppercase sorts before lowercase, exactly like the evaluator
+        var ordinal = CompileQuang("Name gt 'Z'");
+
+        Assert.True(ordinal(new TestUser { Name = "a" }));
+        Assert.False(ordinal(new TestUser { Name = "A" }));
+
+        var between = CompileQuang("Name gte 'A' and Name lte 'B'");
+
+        Assert.True(between(new TestUser { Name = "Alice" }));
+        Assert.False(between(new TestUser { Name = "Carl" }));
+    }
+
+    [Fact]
+    public void Translate_RegWithAFieldAsPattern_Works()
+    {
+        var func = CompileAccount("Nickname reg Nickname");
+
+        Assert.True(func(new TestAccount { Nickname = "quang" }));
+        Assert.False(func(new TestAccount { Nickname = null }));
+
+        var literalInput = CompileAccount("'the quang language' reg Nickname");
+
+        Assert.True(literalInput(new TestAccount { Nickname = "quang" }));
+        Assert.False(literalInput(new TestAccount { Nickname = "rust" }));
+        Assert.False(literalInput(new TestAccount { Nickname = null }));
+    }
+
+    [Fact]
     public void Translate_UnknownField_ThrowsAQuangError()
     {
         var quang = new Quang("Missing eq 1")

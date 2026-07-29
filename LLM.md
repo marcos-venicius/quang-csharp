@@ -110,6 +110,10 @@ Use `or` for a set membership (`method eq :get or method eq :post`) and `reg` fo
 **Numbers.** Integers and floats compare with each other: `age lt 30.5` and `weight gte 70` are
 both valid.
 
+**Fields on both sides.** A comparison does not need a literal. `size gt latency` compares two
+fields of the same record, and works for any two fields of comparable types (numbers with numbers,
+strings with strings). The same is true for `reg`, where the pattern itself may be a field.
+
 **Strings.** Comparison is ordinal (UTF-16 code unit order), so uppercase letters sort before
 lowercase ones: `'Z' lt 'a'` is true. Equality is exact and case sensitive.
 
@@ -408,6 +412,8 @@ Do not use ^, $, \d or any other regex metacharacter.
 **What the translator supports**
 
 - comparisons where one side is a field: `status gte 400`, and also `400 lte status`
+- comparisons between two fields: `size gt latency` (numeric types are widened to the largest of
+  the two, so `int` against `double` works)
 - `and`, `or`, `not`, parentheses, and a nested expression compared as a boolean
 - boolean fields used directly: `cached`, `not cached` (works with `bool` and `bool?`)
 - literals are converted to the property type, so an integer in the query works against `int`,
@@ -416,12 +422,15 @@ Do not use ^, $, \d or any other regex metacharacter.
   and nullable types. On a non nullable value type it is constant `false`, since it can never be empty
 - `field reg '...'` is null safe: it becomes `field != null && <match>`, so a null column is filtered
   out instead of throwing, and EF Core still translates it (`IS NOT NULL AND LIKE` with
-  `RegStrategy.Contains`)
+  `RegStrategy.Contains`). Both sides of `reg` may be a field or a literal
+- ordering strings (`path gt '/b'`) through `string.CompareOrdinal`, which matches the Evaluator.
+  A database provider usually cannot translate it, so prefer comparing strings with `eq`, `ne` and
+  `reg` when the predicate goes to EF Core
 
 **What it does not support** (raises `QuangEvaluationException` at `Translate` time)
 
-- comparing two fields: `size gt latency`
-- `reg` with the field on the right side, or on a non string property
+- a comparison with no field at all: `200 eq 200`
+- `reg` on a property that is not a string
 - a field that has no matching public property on `T`
 
 Because `Translate` runs the type checker and then builds the tree, wrapping it in a `try/catch` of
